@@ -336,12 +336,12 @@ if __name__ == "__main__":
         x_gt=x_val,
         f_theta=model,
         method="dopri5",
-        max_traj=10,
+        max_traj=1,
         gif_path="phase_gt_vs_pred.gif",
-        title=f"Van der Pol (µ=1.0) — Ground Truth (black) vs Neural ODE (red)",
+        title=f"Van der Pol Ground Truth vs NeuralODE",
         fps=30,
         stride=1,   # try 2 or 3 if the GIF is too big
-        dpi=150,
+        dpi=100,
     )
 
     print("Done.")
