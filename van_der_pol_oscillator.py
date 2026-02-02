@@ -336,7 +336,7 @@ if __name__ == "__main__":
         x_gt=x_val,
         f_theta=model,
         method="dopri5",
-        max_traj=1,
+        max_traj=10,
         gif_path="phase_gt_vs_pred.gif",
         title=f"Van der Pol Ground Truth vs NeuralODE",
         fps=30,
