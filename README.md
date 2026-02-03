@@ -10,5 +10,5 @@ Neural ODEs can learn the dynamics of a Van der Pol oscillator by learning throu
 ## Continuous Normalizing Flows
 Neural ODEs also allow learning a continuous version of normalizing flows, which are a way to generate a target distribution by successively applying diffeomorphic transformations to a source distribution. Neural ODEs allow learning this as a continuous-time differential equation. In the following visualizations, we see the result of learning to morph the standard normal distribution into a spiral distribution:
 
-![spiral_morph](https://github.com/user-attachments/assets/7847f893-b69b-4165-ab14-75ff7839386d)
+![spiral_morph](https://github.com/user-attachments/assets/b87af67c-beeb-429d-a594-167357485b7a)
 <img width="636" height="566" alt="true-vs-generated" src="https://github.com/user-attachments/assets/ad6afbc3-ccee-4771-bcea-29acf6efe4f8" />
