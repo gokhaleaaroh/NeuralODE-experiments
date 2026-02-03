@@ -211,9 +211,15 @@ def make_morph_gif(
         plt.close(fig)
         frame_files.append(fname)
 
+
     # --- 5) write GIF
     images = [imageio.imread(f) for f in frame_files]
-    imageio.mimsave(out_path, images, fps=fps)
+    hold_seconds = 2.0
+    frame_duration = 0.1  # seconds per frame
+    hold_frames = int(round(hold_seconds / frame_duration))
+    frames_with_hold = images + [images[-1]] * hold_frames
+
+    imageio.mimsave(out_path, frames_with_hold, fps=fps, loop=0)
 
     # --- 6) cleanup temp frames
     for f in frame_files:
@@ -258,8 +264,9 @@ if __name__ == "__main__":
     samples = samples.detach().numpy()
     samples_2 = sample_spiral(5000)
     plt.figure(figsize=(8,8))
-    plt.scatter(*samples.T, s=10, alpha=1.0, lw=0, c='blue')
-    plt.scatter(*samples_2.T, s=10, alpha=1.0, lw=0, c='red')
+    plt.scatter(*samples.T, s=10, alpha=1.0, lw=0, c='blue', label="Learned CNF")
+    plt.scatter(*samples_2.T, s=10, alpha=1.0, lw=0, c='red', label="Ground Truth")
+    plt.legend()
     plt.axis('equal')
     plt.grid(alpha=0.3)
     plt.show()
