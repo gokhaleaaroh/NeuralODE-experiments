@@ -1,7 +1,7 @@
 # NeuralODE-experiments
 A set of experiments for testing the capabilities of Neural ODEs, a deep learning architecture capabale of continuous-time modeling of data.
 
-An expository article on Neural ODEs and the experiments from this repository can be found here - [https://aarohgokhale.github.io/technical/neural-odes.org](https://aarohgokhale.github.io/technical/neural-odes/)
+An expository article on Neural ODEs and the experiments from this repository can be found here - [https://aarohgokhale.github.io/technical/neural-odes/](https://aarohgokhale.github.io/technical/neural-odes/)
 
 ## Van der Pol Oscillator
 Neural ODEs can learn the dynamics of a Van der Pol oscillator by learning through ground truth trajectory samples. The resulting model is a surrogate for the true dynamics and mimics the true dynamics remarkably well. Below are some visualizations comparing the learned dynamics with the ground truth. 
