@@ -39,12 +39,12 @@ class MLPDynamics(nn.Module):
 
 @torch.no_grad()
 def generate_vdp_traj(mu=1.0, n_traj=128, t_end=20.0, n_steps=200, init_box=(-3.0, 3.0), noise_std=0.0, method="dopri5", device="cpu"):
-    ode = VDP(mu=mu).to(device=DEVICE, dtype=torch.float32)
+    ode = VDP(mu=mu).to(device=device, dtype=torch.float32)
 
-    t = torch.linspace(0.0, t_end, n_steps, device=DEVICE, dtype=torch.float32)
+    t = torch.linspace(0.0, t_end, n_steps, device=device, dtype=torch.float32)
 
     low, high = init_box
-    x0 = (high - low) * torch.rand(n_traj, 2, device=DEVICE, dtype=torch.float32)
+    x0 = (high - low) * torch.rand(n_traj, 2, device=device, dtype=torch.float32)
 
     x = odeint(ode, x0, t, method=method)
     x = x.permute(1, 0, 2).contiguous()
