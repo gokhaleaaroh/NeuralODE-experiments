@@ -2,7 +2,7 @@ import numpy as np
 import math
 import torch
 import torch.nn as nn
-from torchdiffeq import odeint
+from torchdiffeq import odeint_adjoint as odeint
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
@@ -64,9 +64,14 @@ class CNFAugDynamics(nn.Module):
         self.odefunc = odefunc
 
     def forward(self, t, y): 
-        z = y[:, :2].detach().requires_grad_(True)
+        z = y[:, :2]
         f = self.odefunc(t, z)
-        div = divergence(f, z)
+
+        with torch.enable_grad():
+            z_req = z.detach().requires_grad_(True)
+            f = self.odefunc(t, z_req)           # (B, 2), depends on params
+            div = divergence(f, z_req)  
+
         dz_dt = f
         dlogp_dt = -div
         return torch.cat([dz_dt, dlogp_dt], dim=1)
@@ -147,7 +152,7 @@ def make_morph_gif(
     fps=20,
     lim=1.3,              # e.g. 3.5 or (xmin, xmax, ymin, ymax). If None, auto from all frames.
     s=2,                   # marker size
-    dpi=100,
+    dpi=138,
     device=None,
 ):
     """
@@ -240,7 +245,7 @@ if __name__ == "__main__":
     else:
         for it in range(5000):
             loss = train_step(aug, opt, batch_size=1024)
-            if it % 200 == 0:
+            if it % 1 == 0:
                 if loss < best_loss:
                     best_loss = loss
                     save_checkpoint("checkpoints/best_cnf_weights.pt", odefunc, opt, it, best_loss)
@@ -260,13 +265,13 @@ if __name__ == "__main__":
         s=2,
     )
     
-    samples = cnf_sample_inf(odefunc, n=5000)  # (5000,2)
-    samples = samples.detach().numpy()
-    samples_2 = sample_spiral(5000)
-    plt.figure(figsize=(8,8))
-    plt.scatter(*samples.T, s=10, alpha=1.0, lw=0, c='blue', label="Learned CNF")
-    plt.scatter(*samples_2.T, s=10, alpha=1.0, lw=0, c='red', label="Ground Truth")
-    plt.legend()
-    plt.axis('equal')
-    plt.grid(alpha=0.3)
-    plt.show()
+    # samples = cnf_sample_inf(odefunc, n=5000)  # (5000,2)
+    # samples = samples.detach().numpy()
+    # samples_2 = sample_spiral(5000)
+    # plt.figure(figsize=(8,8))
+    # plt.scatter(*samples.T, s=10, alpha=1.0, lw=0, c='blue', label="Learned CNF")
+    # plt.scatter(*samples_2.T, s=10, alpha=1.0, lw=0, c='red', label="Ground Truth")
+    # plt.legend()
+    # plt.axis('equal')
+    # plt.grid(alpha=0.3)
+    # plt.show()

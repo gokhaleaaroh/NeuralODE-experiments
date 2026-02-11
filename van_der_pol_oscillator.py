@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
-from torchdiffeq import odeint
+from torchdiffeq import odeint, odeint_adjoint
 from torch.utils.data import Dataset, DataLoader
 import os
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 import numpy as np
+
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 class VDP(nn.Module):
     def __init__(self, mu=1.0):
@@ -37,12 +39,12 @@ class MLPDynamics(nn.Module):
 
 @torch.no_grad()
 def generate_vdp_traj(mu=1.0, n_traj=128, t_end=20.0, n_steps=200, init_box=(-3.0, 3.0), noise_std=0.0, method="dopri5", device="cpu"):
-    ode = VDP(mu=mu).to(device=device, dtype=torch.float32)
+    ode = VDP(mu=mu).to(device=DEVICE, dtype=torch.float32)
 
-    t = torch.linspace(0.0, t_end, n_steps, device=device, dtype=torch.float32)
+    t = torch.linspace(0.0, t_end, n_steps, device=DEVICE, dtype=torch.float32)
 
     low, high = init_box
-    x0 = (high - low) * torch.rand(n_traj, 2, device=device, dtype=torch.float32)
+    x0 = (high - low) * torch.rand(n_traj, 2, device=DEVICE, dtype=torch.float32)
 
     x = odeint(ode, x0, t, method=method)
     x = x.permute(1, 0, 2).contiguous()
@@ -84,15 +86,21 @@ def load_checkpoint(path, model, optim=None):
 
     return checkpoint
 
-def rollout(learned_dyn, x0_batch, t):
-    pred = odeint(learned_dyn, x0_batch, t, method="dopri5")
+def rollout(learned_dyn, x0_batch, t, use_adjoint=False):
+    if use_adjoint:
+        pred = odeint_adjoint(learned_dyn, x0_batch, t, method="dopri5")
+    else:
+        pred = odeint(learned_dyn, x0_batch, t, method="dopri5")
     pred = pred.permute(1, 0, 2).contiguous()
     return pred
 
-def train_vdp_neural_ode():
+def train_vdp_neural_ode(use_adjoint=False, supervise_intermediates=True):
     t_train, x0_train, x_train = generate_vdp_traj(noise_std=0.02)
     t_val, x0_val, x_val = generate_vdp_traj()
 
+    if not supervise_intermediates:
+        x_train = x_train[-1]
+    
     train_loader = DataLoader(
         TrajectoryData(x0_train, x_train),
         batch_size=16,
@@ -100,7 +108,7 @@ def train_vdp_neural_ode():
         drop_last=True,
     )
 
-    learned_dyn = MLPDynamics(hidden=64)
+    learned_dyn = MLPDynamics(hidden=64).to(device=DEVICE)
     optim = torch.optim.Adam(learned_dyn.parameters(), lr=1e-3)
     best_val = float("inf")
     best_step = -1
@@ -109,12 +117,12 @@ def train_vdp_neural_ode():
         load_checkpoint("checkpoints/best_vdp_weights.pt", learned_dyn, optim=None)
         return learned_dyn, (t_train, x0_train, x_train), (t_val, x0_val, x_val)
     else:
-        print("Best checkpoint not found, trainig now")
+        print("Best checkpoint not found, training now")
 
     learned_dyn.train()
     step = 0
     data_iter = iter(train_loader)
-    total_steps = 5000
+    total_steps = 2000
 
     while step < total_steps:
         try:
@@ -123,7 +131,12 @@ def train_vdp_neural_ode():
             data_iter = iter(train_loader)
             x0_b, x_true_b = next(data_iter)
 
-        x_pred_b = rollout(learned_dyn, x0_b, t_train)
+        x0_b = x0_b
+        x_true_b = x_true_b
+
+        x_pred_b = rollout(learned_dyn, x0_b, t_train, use_adjoint)
+        if not supervise_intermediates:
+            x_pred_b = x_pred_b[:, -1, :]
     
         loss = torch.mean((x_pred_b - x_true_b) ** 2)
 
@@ -135,14 +148,15 @@ def train_vdp_neural_ode():
         if (step % 50) == 0:
             learned_dyn.eval()
             with torch.no_grad():
-                x_pred_val = rollout(learned_dyn, x0_val, t_val)
+                x_pred_val = rollout(learned_dyn, x0_val, t_val, use_adjoint)
                 val_loss = torch.mean((x_pred_val - x_val) ** 2).item()
 
             if val_loss < best_val:
                 best_val = val_loss
                 best_step = step
-                save_checkpoint("checkpoints/best_vdp_weights.pt", learned_dyn, optim, step, best_val)
-                print(f"    -> new best! saved to checkpoints/best_vdp_weights.pt")
+                save_str = f"checkpoints/best_vdp_weights_{"adjoint" if use_adjoint else "naive"}_{"inter" if supervise_intermediates else "endp"}.pt"
+                save_checkpoint(save_str, learned_dyn, optim, step, best_val)
+                print(f"    -> new best! saved to ", save_str)
 
             learned_dyn.train()
             print(f"step {step:5d} | train loss {loss.item():.6f} | val loss {val_loss:.6f}")
@@ -325,7 +339,7 @@ def animate_phase_portrait_gt_vs_learned_gif(
     print(f"Saved GIF to: {gif_path}")
 
 if __name__ == "__main__":
-    model, train_data, val_data = train_vdp_neural_ode()
+    model, train_data, val_data = train_vdp_neural_ode(True, False)
     t_train, x0_train, x_train = train_data
     t_val, x0_val, x_val = val_data
 
@@ -336,7 +350,7 @@ if __name__ == "__main__":
         x_gt=x_val,
         f_theta=model,
         method="dopri5",
-        max_traj=10,
+        max_traj=1,
         gif_path="phase_gt_vs_pred.gif",
         title=f"Van der Pol Ground Truth vs NeuralODE",
         fps=30,
