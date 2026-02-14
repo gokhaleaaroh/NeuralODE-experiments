@@ -86,11 +86,11 @@ def load_checkpoint(path, model, optim=None):
 
     return checkpoint
 
-def rollout(learned_dyn, x0_batch, t, use_adjoint=False):
+def rollout(learned_dyn, x0_batch, t, use_adjoint=False, method="dopri5"):
     if use_adjoint:
-        pred = odeint_adjoint(learned_dyn, x0_batch, t, method="dopri5")
+        pred = odeint_adjoint(learned_dyn, x0_batch, t, method=method)
     else:
-        pred = odeint(learned_dyn, x0_batch, t, method="dopri5")
+        pred = odeint(learned_dyn, x0_batch, t, method=method)
     pred = pred.permute(1, 0, 2).contiguous()
     return pred
 
